@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚡ Dashboard Energi Premium (Dark Mode)</title>
+    <title>⚡ Dashboard Energi Premium (PZEM)</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
-    
+
     <style>
         /* --- FONT & RESET --- */
         * {
@@ -15,80 +15,87 @@
             padding: 0;
         }
 
-        /* --- BACKGROUND & TEMA --- */
+        /* --- BACKGROUND & TEMA (DARK MODE & GRADIENT) --- */
         body {
             font-family: 'Poppins', sans-serif;
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             background: 
                 radial-gradient(circle at 10% 20%, rgba(31, 31, 31, 1) 0%, rgba(20, 20, 20, 1) 90%),
                 linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
-            color: #e0e0e0; /* Warna teks terang */
+            color: #e0e0e0;
             transition: background 0.5s;
+            padding: 20px;
         }
 
         /* --- CONTAINER UTAMA (EFEK GLASSMORHPISM) --- */
         .dashboard-container {
             width: 90%;
-            max-width: 700px;
+            max-width: 850px;
             background: rgba(45, 45, 45, 0.4); /* Transparan gelap */
             backdrop-filter: blur(10px); /* Efek blur/glass */
-            border: 1px solid rgba(255, 255, 255, 0.1); /* Garis batas halus */
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 20px;
             padding: 40px;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            animation: fadeIn 1s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
         }
 
         h1 {
             font-size: 2.5em;
             font-weight: 700;
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             /* Gradient Text */
             background: linear-gradient(45deg, #00c6ff, #0072ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-
+        
         p.subtitle {
             text-align: center;
             color: #999;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
             font-weight: 300;
+            font-size: 0.9em;
         }
 
         /* --- STATUS KONEKSI --- */
-        .status {
+        .status-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status-text {
             font-weight: 600;
             padding: 8px 15px;
             border-radius: 50px;
-            margin-bottom: 25px;
-            text-align: center;
+            display: inline-block;
             transition: all 0.3s ease;
+            font-size: 1em;
         }
-        .status.connected {
+        .connected {
             background-color: #1f6e2b;
             color: #d4edda;
-            box-shadow: 0 0 10px #1f6e2b;
+            box-shadow: 0 0 8px rgba(31, 110, 43, 0.7);
         }
-        .status.disconnected {
+        .disconnected {
             background-color: #8b2323;
             color: #f8d7da;
-            box-shadow: 0 0 10px #8b2323;
+            box-shadow: 0 0 8px rgba(139, 35, 35, 0.7);
         }
+        .connecting {
+            background-color: #ffaa00;
+            color: #333;
+            box-shadow: 0 0 8px rgba(255, 170, 0, 0.7);
+        }
+        
 
         /* --- GRID DATA --- */
         .data-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 20px;
         }
 
@@ -121,13 +128,21 @@
             font-weight: 700;
             font-family: 'Poppins', sans-serif;
             color: #fff;
-            background: linear-gradient(90deg, #00c6ff, #0072ff);
+            /* Gradient Color untuk nilai */
+            background: linear-gradient(90deg, #ffc700, #ff8c00); 
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             display: block;
             line-height: 1.2;
         }
         
+        /* Ubah gradient khusus untuk Daya & Energi agar berbeda */
+        #val-power, #val-energy {
+            background: linear-gradient(90deg, #4dff5b, #00d2ff); 
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
         .unit {
             font-size: 0.7em;
             font-weight: 600;
@@ -135,132 +150,126 @@
             display: inline-block;
             margin-left: 5px;
         }
-
-        .footer {
-            text-align: center;
-            margin-top: 40px;
-            font-size: 0.8em;
-            color: #666;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            padding-top: 20px;
-        }
     </style>
 </head>
 <body>
 
 <div class="dashboard-container">
     <h1>⚡ P-ZEM Energy Monitor</h1>
-    <p class="subtitle">Real-time data stream from IoT Sensor via MQTT</p>
+    <p class="subtitle">Real-time Data Stream via Secure MQTT</p>
 
-    <div id="mqtt-status" class="status disconnected">Status: Disconnected</div>
+    <div class="status-container">
+        Status Koneksi: <span id="status-text" class="status-text disconnected">DISCONNECTED</span>
+    </div>
 
     <div class="data-grid">
         <div class="card">
             <span class="label">Tegangan</span>
-            <span class="value" id="tegangan">0.00 <span class="unit">V</span></span>
+            <span class="value" id="val-voltage">0.00 <span class="unit">V</span></span>
         </div>
+        
         <div class="card">
             <span class="label">Arus</span>
-            <span class="value" id="arus">0.000 <span class="unit">A</span></span>
+            <span class="value" id="val-current">0.000 <span class="unit">A</span></span>
         </div>
+
         <div class="card">
-            <span class="label">Daya</span>
-            <span class="value" id="daya">0.0 <span class="unit">W</span></span>
+            <span class="label">Daya Aktif</span>
+            <span class="value" id="val-power">0.0 <span class="unit">W</span></span>
         </div>
+
         <div class="card">
-            <span class="label">Energi</span>
-            <span class="value" id="energi">0.000 <span class="unit">kWh</span></span>
+            <span class="label">Energi Total</span>
+            <span class="value" id="val-energy">0.000 <span class="unit">kWh</span></span>
         </div>
+
         <div class="card">
             <span class="label">Frekuensi</span>
-            <span class="value" id="frekuensi">0.0 <span class="unit">Hz</span></span>
+            <span class="value" id="val-frek">0.0 <span class="unit">Hz</span></span>
         </div>
+
         <div class="card">
             <span class="label">Power Factor</span>
-            <span class="value" id="pf">0.00 <span class="unit">PF</span></span>
+            <span class="value" id="val-pf">0.00 <span class="unit">PF</span></span>
         </div>
-    </div>
-
-    <div class="footer">
-        Terakhir Diperbarui: <span id="last-update">N/A</span>
     </div>
 </div>
 
 <script>
     // --- KONFIGURASI MQTT ---
-    const MQTT_BROKER = "broker.emqx.io";
-    const MQTT_PORT = 1883; // Port WebSocket
-    const MQTT_TOPIC = "iot/pzem/data";
-    const MQTT_CLIENT_ID = "web_premium_sub_" + parseInt(Math.random() * 1000, 10);
+    const broker = "broker.emqx.io";
+    const port = 8084; // Port WSS (Secure WebSocket)
+    const topic = "iot/pzem/data"; 
+    const clientID = "web_monitor_" + Math.random().toString(16).substr(2, 8);
 
-    const statusDiv = document.getElementById("mqtt-status");
+    const statusElement = document.getElementById("status-text");
 
-    // Inisialisasi Klien MQTT
-    const client = new Paho.MQTT.Client(MQTT_BROKER, MQTT_PORT, "/ws", MQTT_CLIENT_ID);
+    // Inisialisasi Paho Client
+    const client = new Paho.MQTT.Client(broker, port, clientID);
 
-    // Tetapkan callback
-    client.onConnectionLost = onConnectionLost;
-    client.onMessageArrived = onMessageArrived;
+    // Handler ketika koneksi putus
+    client.onConnectionLost = function (responseObject) {
+        statusElement.innerText = "LOST!";
+        statusElement.className = "status-text disconnected";
+        console.log("Koneksi hilang: " + responseObject.errorMessage);
+        // Coba koneksi ulang
+        setTimeout(startConnection, 5000);
+    };
 
-    // Coba koneksi
-    client.connect({
-        onSuccess: onConnect,
-        onFailure: onFailure,
-        cleanSession: true,
-        useSSL: false
-    });
-
-    // --- FUNGSI CALLBACK ---
-    function onConnect() {
-        console.log("Terhubung ke MQTT Broker!");
-        statusDiv.className = "status connected";
-        statusDiv.innerHTML = "Status: **CONNECTED**";
-        client.subscribe(MQTT_TOPIC);
-    }
-
-    function onFailure(responseObject) {
-        console.log("Gagal konek: " + responseObject.errorMessage);
-        statusDiv.className = "status disconnected";
-        statusDiv.innerHTML = "Status: **DISCONNECTED**";
-        // Coba konek ulang (Opsional: Tambahkan delay)
-    }
-
-    function onConnectionLost(responseObject) {
-        if (responseObject.errorCode !== 0) {
-            console.log("Koneksi terputus: " + responseObject.errorMessage);
-            statusDiv.className = "status disconnected";
-            statusDiv.innerHTML = "Status: **LOST**";
-        }
-        // Coba konek ulang
-        client.connect({
-            onSuccess: onConnect,
-            onFailure: onFailure,
-            cleanSession: true,
-            useSSL: false
-        });
-    }
-
-    function onMessageArrived(message) {
+    // Handler ketika pesan masuk
+    client.onMessageArrived = function (message) {
+        // console.log("Data masuk: " + message.payloadString);
         try {
             const data = JSON.parse(message.payloadString);
             
-            // Perbarui elemen HTML
-            document.getElementById('tegangan').innerHTML = (data.tegangan ? data.tegangan.toFixed(2) : 'N/A') + ' <span class="unit">V</span>';
-            document.getElementById('arus').innerHTML = (data.arus ? data.arus.toFixed(3) : 'N/A') + ' <span class="unit">A</span>';
-            document.getElementById('daya').innerHTML = (data.daya ? data.daya.toFixed(1) : 'N/A') + ' <span class="unit">W</span>';
-            document.getElementById('energi').innerHTML = (data.energi ? data.energi.toFixed(3) : 'N/A') + ' <span class="unit">kWh</span>';
-            document.getElementById('frekuensi').innerHTML = (data.frekuensi ? data.frekuensi.toFixed(1) : 'N/A') + ' <span class="unit">Hz</span>';
-            document.getElementById('pf').innerHTML = (data.pf ? data.pf.toFixed(2) : 'N/A') + ' <span class="unit">PF</span>';
-
-            // Perbarui waktu terakhir update
-            const now = new Date();
-            document.getElementById('last-update').innerText = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            // Fungsi pembantu untuk mengupdate nilai
+            const updateValue = (id, value, unit, decimals) => {
+                const elem = document.getElementById(id);
+                if (elem && value !== undefined) {
+                    elem.innerHTML = value.toFixed(decimals) + ` <span class="unit">${unit}</span>`;
+                }
+            };
+            
+            // Update tampilan HTML dengan format yang rapi
+            updateValue("val-voltage", data.tegangan, "V", 2);
+            updateValue("val-current", data.arus, "A", 3);
+            updateValue("val-power", data.daya, "W", 1);
+            updateValue("val-energy", data.energi, "kWh", 3);
+            updateValue("val-frek", data.frekuensi, "Hz", 1);
+            updateValue("val-pf", data.pf, "PF", 2);
 
         } catch (e) {
-            console.error("Gagal parse JSON:", e);
+            console.error("Format data salah!", e);
         }
-    }
-</script>
+    };
 
+    // Fungsi koneksi
+    function startConnection() {
+        statusElement.innerText = "CONNECTING...";
+        statusElement.className = "status-text connecting";
+
+        client.connect({
+            useSSL: true, // WAJIB True karena pakai port 8084 (WSS)
+            onSuccess: function () {
+                statusElement.innerText = "CONNECTED";
+                statusElement.className = "status-text connected";
+                
+                // Subscribe ke topik
+                client.subscribe(topic);
+                console.log("Berhasil subscribe ke " + topic);
+            },
+            onFailure: function (e) {
+                statusElement.innerText = "FAILED";
+                statusElement.className = "status-text disconnected";
+                console.log("Gagal konek: " + e.errorMessage);
+                // Coba konek lagi setelah 5 detik
+                setTimeout(startConnection, 5000); 
+            }
+        });
+    }
+
+    // Mulai koneksi saat halaman dimuat
+    startConnection();
+</script>
 </body>
 </html>
